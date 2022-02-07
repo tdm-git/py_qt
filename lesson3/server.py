@@ -122,7 +122,6 @@ def arg_parser():
 
 def main():
     listen_address, listen_port = arg_parser()
-    database = ServerStorage()
     server = Server(listen_address, listen_port)
     server.main_loop()
 
