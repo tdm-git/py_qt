@@ -12,6 +12,7 @@ from common.utils import *
 from decos import log
 from descripts import Port
 from metaclasses import ServerMaker
+from database_server import  ServerStorage
 
 
 logger = logging.getLogger('server')
@@ -19,9 +20,10 @@ logger = logging.getLogger('server')
 class Server(metaclass=ServerMaker):
     port = Port()
 
-    def __init__(self, listen_address, listen_port):
+    def __init__(self, listen_address, listen_port, database):
         self.addr = listen_address
         self.port = listen_port
+        self.database = database
         self.clients = []
         self.messages = []
         self.names = dict()
@@ -85,6 +87,8 @@ class Server(metaclass=ServerMaker):
         if ACTION in message and message[ACTION] == PRESENCE and TIME in message and USER in message:
             if message[USER][ACCOUNT_NAME] not in self.names.keys():
                 self.names[message[USER][ACCOUNT_NAME]] = client
+                client_ip, client_port = client.getpeername()
+                self.database.user_login(message[USER][ACCOUNT_NAME], client_ip, client_port)
                 send_message(client, RESPONSE_200)
             else:
                 response = RESPONSE_400
@@ -98,6 +102,7 @@ class Server(metaclass=ServerMaker):
             self.messages.append(message)
             return
         elif ACTION in message and message[ACTION] == EXIT and ACCOUNT_NAME in message:
+            self.database.user_logout(message[ACCOUNT_NAME])
             self.clients.remove(self.names[ACCOUNT_NAME])
             self.names[ACCOUNT_NAME].close()
             del self.names[ACCOUNT_NAME]
@@ -121,8 +126,9 @@ def arg_parser():
 
 
 def main():
+    database = ServerStorage()
     listen_address, listen_port = arg_parser()
-    server = Server(listen_address, listen_port)
+    server = Server(listen_address, listen_port, database)
     server.main_loop()
 
 
